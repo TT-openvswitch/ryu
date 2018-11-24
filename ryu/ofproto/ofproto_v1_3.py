@@ -70,7 +70,6 @@ OFPT_SET_ASYNC = 28                 # Controller/switch message
 
 OFPT_METER_MOD = 29                 # Controller/switch message
 
-
 # struct ofp_port
 OFP_MAX_PORT_NAME_LEN = 16
 OFP_ETH_ALEN = 6

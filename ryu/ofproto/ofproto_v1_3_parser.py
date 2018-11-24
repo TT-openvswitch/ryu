@@ -129,7 +129,7 @@ class OFPHello(MsgBase):
         offset = ofproto.OFP_HELLO_HEADER_SIZE
         elems = []
         while offset < msg.msg_len:
-            type_, length = structm(
+            type_, length = struct.unpack_from(
                 ofproto.OFP_HELLO_ELEM_HEADER_PACK_STR, msg.buf, offset)
 
             # better to register Hello Element classes but currently

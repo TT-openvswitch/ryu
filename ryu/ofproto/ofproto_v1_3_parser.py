@@ -6542,7 +6542,7 @@ class ONFTTFlowMod(OFPExperimenter):
             pkt_size = 64
 
             req = ofp_parser.ONFTTFlowMod(datapath, ofp.OFPFC_ADD,
-                                          port, type, flow_id,
+                                          port, etype, flow_id,
                                           scheduled_time, period,
                                           buffer_id, pkt_size)
             datapath.send_msg(req)
@@ -6569,7 +6569,7 @@ class ONFTTFlowMod(OFPExperimenter):
                       self.buf, ofproto.OFP_HEADER_SIZE,
                       self.experimenter, self.exp_type)
         msg_pack_into(ofproto.ONF_TT_FLOW_MOD_PACK_STR, self.buf,
-                      ofproto.ONF_TT_FLOW_MOD_SIZE,
+                      ofproto.OFP_EXPERIMENTER_HEADER_SIZE,
                       self.command, self.port, self.etype,
                       self.flow_id, self.scheduled_time,
                       self.period, self.buffer_id, self.pkt_size)

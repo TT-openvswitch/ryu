@@ -899,6 +899,21 @@ ONF_BF_ORDERED = 1 << 1
 # enum onf_bundle_prop_type
 ONF_ET_BPT_EXPERIMENTER = 0xffff
 
+
+# EXT: TT support (Chen Weihang) 
+
+# enum onf_exp_type
+ONF_ET_TT_FLOW_MOD = 2400
+
+ONF_TT_FLOW_MOD_PACK_STR = '!BBBBIIII'
+ONF_TT_FLOW_MOD_SIZE = 20
+assert (calcsize(ONF_TT_FLOW_MOD_PACK_STR) == 
+        ONF_TT_FLOW_MOD_SIZE)
+
+# enum onf_tt_entry_type
+ONF_TT_SEND = 0
+ONF_TT_RECV = 1
+
 # struct ofp_error_msg
 OFP_ERROR_MSG_PACK_STR = '!HH'
 OFP_ERROR_MSG_SIZE = 12

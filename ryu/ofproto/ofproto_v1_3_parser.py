@@ -38,6 +38,9 @@ The following extensions are not implemented yet.
     - EXT-191 Role Status Extension
     - EXT-192-e Flow entry eviction Extension
     - EXT-192-v Vacancy events Extension
+
+Chen Weihang: add TT flow mod message support
+
 """
 
 import struct
@@ -6496,3 +6499,86 @@ nx_actions.generate(
     'ryu.ofproto.ofproto_v1_3',
     'ryu.ofproto.ofproto_v1_3_parser'
 )
+
+
+@_register_exp_type(ofproto_common.ONF_EXPERIMENTER_ID,
+                    ofproto.ONF_ET_TT_FLOW_MOD)
+class ONFTTFlowMod(OFPExperimenter):
+    """
+    Time-Triggered Flow Modify
+
+    The controller sends this message to download the TT flow table.
+
+    ================ ======================================================
+    Attribute        Description
+    ================ ======================================================
+    command          One of the following values.
+                     
+                     | OFPFC_ADD
+                     | OFPFC_MODIFY
+                     | OFPFC_DELETE
+    port             The entry related port.
+    etype             Send entry or receive entry.
+    flow_id          The identify of a flow.
+    scheduled_time   The schedule time when packet is sent or received.
+    period           The scheduling period.
+    buffer_id        Buffered packet to apply to.
+    pkt_size         The flow packet size.
+    
+    ================ ======================================================
+    
+    Example::
+
+        def send_tt_flow_mod(self, datapath):
+            ofp = datapath.ofproto
+            ofp_parser = datapath.ofproto_parser
+
+            port = 1
+            etype = ofp.ONF_TT_SEND
+            flow_id = 2
+            scheduled_time = 17408
+            period = 8388608
+            buffer_id = 1
+            pkt_size = 64
+
+            req = ofp_parser.ONFTTFlowMod(datapath, ofp.OFPFC_ADD,
+                                          port, etype, flow_id,
+                                          scheduled_time, period,
+                                          buffer_id, pkt_size)
+            datapath.send_msg(req)
+    """
+
+    def __init__(self, datapath, command=ofproto.OFPFC_ADD,
+                 port=None, etype=None, flow_id=None,
+                 scheduled_time=None, period=None,
+                 buffer_id=None, pkt_size=None):
+        super(ONFTTFlowMod, self).__init__(
+            datapath, ofproto_common.ONF_EXPERIMENTER_ID,
+            ofproto.ONF_ET_TT_FLOW_MOD)
+        self.command = command
+        self.port = port
+        self.etype = etype
+        self.flow_id = flow_id
+        self.scheduled_time = scheduled_time
+        self.period = period
+        self.buffer_id = buffer_id
+        self.pkt_size = pkt_size
+
+    def _serialize_body(self):
+        msg_pack_into(ofproto.OFP_EXPERIMENTER_HEADER_PACK_STR,
+                      self.buf, ofproto.OFP_HEADER_SIZE,
+                      self.experimenter, self.exp_type)
+        msg_pack_into(ofproto.ONF_TT_FLOW_MOD_PACK_STR, self.buf,
+                      ofproto.OFP_EXPERIMENTER_HEADER_SIZE,
+                      self.command, self.port, self.etype,
+                      self.flow_id, self.scheduled_time,
+                      self.period, self.buffer_id, self.pkt_size)
+       
+    @classmethod
+    def parser_subtype(cls, super_msg):
+        (command, port, etype, flow_id, scheduled_time,
+            period, buffer_id, pkt_size) = struct.unpack_from(
+            ofproto.ONF_TT_FLOW_MOD_PACK_STR, super_msg.data)
+        msg = cls(super_msg.datapath, command, port, etype, 
+            flow_id, scheduled_time, period, buffer_id, pkt_size)
+        return msg

@@ -70,7 +70,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
-        schedule_table_path = "/home/mininet/workspace/flowtb/tt_test"
+        schedule_table_path = "/home/chenwh/Workspace/Data/tt_test"
         entries = tt_tb.tt_flow_generator(schedule_table_path)
         for entry in entries:
             req = parser.ONFTTFlowMod(datapath=datapath, 

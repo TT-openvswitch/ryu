@@ -6494,11 +6494,56 @@ class ONFBundleAddMsg(OFPExperimenter):
         # Finish
         self.buf += tail_buf
 
+@_register_exp_type(ofproto_common.ONF_EXPERIMENTER_ID,
+                    ofproto.ONF_ET_TT_FLOW_CONTROL)
+class ONFTTFlowCtrl(OFPExperimenter):
+    """
+    Time-Triggered Flow Control 
 
-nx_actions.generate(
-    'ryu.ofproto.ofproto_v1_3',
-    'ryu.ofproto.ofproto_v1_3_parser'
-)
+    The controller use this message to tell switch the info of TT flow.
+
+    ================ ======================================================
+    Attribute        Description
+    ================ ======================================================
+    command          One of the following values.
+                     
+                     | ONF_TFCC_ADD
+                     | ONF_TFCC_DELETE
+    flow_number      The number of flow. 
+    ================ ======================================================
+
+    Example::
+
+        def send_tt_flow_ctrl(self, datapath):
+            ofp = datapath.ofproto
+            ofp_parser = datapath.ofproto_parser
+
+            req = ofp_parser.ONFTTFlowCtrl(datapath, 
+                                           ofproto.ONF_TFCC_ADD, 6)
+            
+            datapath.send_msg(req)
+    """
+    def __init__(self, datapath, command, flow_number):
+        super(ONFTTFlowCtrl, self).__init__(
+            datapath, ofproto_common.ONF_EXPERIMENTER_ID,
+            ofproto.ONF_ET_TT_FLOW_CONTROL)
+        self.command = command
+        self.flow_number = flow_number
+
+    def _serialize_body(self):
+        msg_pack_into(ofproto.OFP_EXPERIMENTER_HEADER_PACK_STR,
+                      self.buf, ofproto.OFP_HEADER_SIZE,
+                     self.experimenter, self.exp_type)
+        msg_pack_into(ofproto.ONF_TT_FLOW_CTRL_PACK_STR,
+                     self.buf, ofproto.OFP_EXPERIMENTER_HEADER_SIZE,
+                     self.command, self.flow_number)
+
+    @classmethod
+    def parser_subtype(cls, super_msg):
+        (command, flow_number) = struct.unpack_from(
+            ofproto.ONF_TT_FLOW_CTRL_PACK_STR,super_msg.data)
+        msg = cls(super_msg.datapath, command, flow_number)
+        return msg
 
 
 @_register_exp_type(ofproto_common.ONF_EXPERIMENTER_ID,
@@ -6512,13 +6557,8 @@ class ONFTTFlowMod(OFPExperimenter):
     ================ ======================================================
     Attribute        Description
     ================ ======================================================
-    command          One of the following values.
-                     
-                     | OFPFC_ADD
-                     | OFPFC_MODIFY
-                     | OFPFC_DELETE
     port             The entry related port.
-    etype             Send entry or receive entry.
+    etype            Send entry or receive entry.
     flow_id          The identify of a flow.
     scheduled_time   The schedule time when packet is sent or received.
     period           The scheduling period.
@@ -6582,3 +6622,10 @@ class ONFTTFlowMod(OFPExperimenter):
         msg = cls(super_msg.datapath, command, port, etype, 
             flow_id, scheduled_time, period, buffer_id, pkt_size)
         return msg
+
+
+nx_actions.generate(
+    'ryu.ofproto.ofproto_v1_3',
+    'ryu.ofproto.ofproto_v1_3_parser'
+)
+

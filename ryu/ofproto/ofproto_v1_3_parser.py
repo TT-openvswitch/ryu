@@ -6509,6 +6509,12 @@ class ONFTTFlowCtrl(OFPExperimenter):
                      
                      | ONF_TFCC_ADD
                      | ONF_TFCC_DELETE
+    type             One of the following values.
+
+                     | ONF_TFCT_DOWNLOAD_STRAT_REQUEST
+                     | ONF_TFCT_DOWNLOAD_START_REPLY
+                     | ONF_TFCT_DOWNLOAD_END_REQUEST
+                     | ONF_TFCT_DOWNLOAD_END_REPLY
     flow_number      The number of flow. 
     ================ ======================================================
 
@@ -6519,15 +6525,18 @@ class ONFTTFlowCtrl(OFPExperimenter):
             ofp_parser = datapath.ofproto_parser
 
             req = ofp_parser.ONFTTFlowCtrl(datapath, 
-                                           ofproto.ONF_TFCC_ADD, 6)
+                                           ofp.ONF_TFCC_ADD, 
+                                           ofp.ONF_TFCT_DOWNLOAD_START_REQUEST,
+                                           6)
             
             datapath.send_msg(req)
     """
-    def __init__(self, datapath, command, flow_number):
+    def __init__(self, datapath, command=None, type_=None, flow_number=None):
         super(ONFTTFlowCtrl, self).__init__(
             datapath, ofproto_common.ONF_EXPERIMENTER_ID,
             ofproto.ONF_ET_TT_FLOW_CONTROL)
         self.command = command
+        self.type = type_
         self.flow_number = flow_number
 
     def _serialize_body(self):
@@ -6536,13 +6545,13 @@ class ONFTTFlowCtrl(OFPExperimenter):
                      self.experimenter, self.exp_type)
         msg_pack_into(ofproto.ONF_TT_FLOW_CTRL_PACK_STR,
                      self.buf, ofproto.OFP_EXPERIMENTER_HEADER_SIZE,
-                     self.command, self.flow_number)
+                     self.command, self.type, self.flow_number)
 
     @classmethod
     def parser_subtype(cls, super_msg):
-        (command, flow_number) = struct.unpack_from(
-            ofproto.ONF_TT_FLOW_CTRL_PACK_STR,super_msg.data)
-        msg = cls(super_msg.datapath, command, flow_number)
+        (command, type_, flow_number) = struct.unpack_from(
+            ofproto.ONF_TT_FLOW_CTRL_PACK_STR, super_msg.data)
+        msg = cls(super_msg.datapath, command, type_, flow_number)
         return msg
 
 
@@ -6581,21 +6590,20 @@ class ONFTTFlowMod(OFPExperimenter):
             buffer_id = 1
             pkt_size = 64
 
-            req = ofp_parser.ONFTTFlowMod(datapath, ofp.OFPFC_ADD,
+            req = ofp_parser.ONFTTFlowMod(datapath,
                                           port, etype, flow_id,
                                           scheduled_time, period,
                                           buffer_id, pkt_size)
             datapath.send_msg(req)
     """
 
-    def __init__(self, datapath, command=ofproto.OFPFC_ADD,
+    def __init__(self, datapath,
                  port=None, etype=None, flow_id=None,
                  scheduled_time=None, period=None,
                  buffer_id=None, pkt_size=None):
         super(ONFTTFlowMod, self).__init__(
             datapath, ofproto_common.ONF_EXPERIMENTER_ID,
             ofproto.ONF_ET_TT_FLOW_MOD)
-        self.command = command
         self.port = port
         self.etype = etype
         self.flow_id = flow_id
@@ -6610,17 +6618,17 @@ class ONFTTFlowMod(OFPExperimenter):
                       self.experimenter, self.exp_type)
         msg_pack_into(ofproto.ONF_TT_FLOW_MOD_PACK_STR, self.buf,
                       ofproto.OFP_EXPERIMENTER_HEADER_SIZE,
-                      self.command, self.port, self.etype,
+                      self.port, self.etype,
                       self.flow_id, self.scheduled_time,
                       self.period, self.buffer_id, self.pkt_size)
        
     @classmethod
     def parser_subtype(cls, super_msg):
-        (command, port, etype, flow_id, scheduled_time,
+        (port, etype, flow_id, scheduled_time,
             period, buffer_id, pkt_size) = struct.unpack_from(
             ofproto.ONF_TT_FLOW_MOD_PACK_STR, super_msg.data)
-        msg = cls(super_msg.datapath, command, port, etype, 
-            flow_id, scheduled_time, period, buffer_id, pkt_size)
+        msg = cls(super_msg.datapath, port, etype, flow_id, 
+                  scheduled_time, period, buffer_id, pkt_size)
         return msg
 
 

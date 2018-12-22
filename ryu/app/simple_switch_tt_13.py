@@ -49,7 +49,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
                                           ofproto.OFPCML_NO_BUFFER)]
         self.add_flow(datapath, 0, match, actions)
-        self.download_tt_flow(datapath)
+        self.config_tt_flow(datapath)
 
     def add_flow(self, datapath, priority, match, actions, buffer_id=None):
         ofproto = datapath.ofproto
@@ -66,15 +66,32 @@ class SimpleSwitch13(app_manager.RyuApp):
                                     match=match, instructions=inst)
         datapath.send_msg(mod)
 
-    def download_tt_flow(self, datapath):
+    def config_tt_flow(self, datapath):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
+        # Load TT schedule table
         schedule_table_path = "/home/chenwh/Workspace/Data/tt_test"
-        entries = tt_tb.tt_flow_generator(schedule_table_path)
+        entries = tt_tb.load_tt_flowtable(schedule_table_path)
+        
+        # Send control message
+        flow_num = len(entries)
+        req = parser.ONFTTFlowCtrl(datapath=datapath,
+                                   command=ofproto.ONF_TFCC_ADD,
+                                   type_=ofproto.ONF_TFCT_DOWNLOAD_START_REQUEST,
+                                   flow_number=flow_num)
+        datapath.send_msg(req)
+       
+    @set_ev_cls(ofp_event.EventOFPExperimenter, MAIN_DISPATCHER)
+    def _download_tt_flow_handler(self, ev):
+        self.logger.debug("tt flow control %s", ev)
+        msg = ev.msg
+        datapath = msg.datapath
+
+        # Doenload TT flow entries
+        """
         for entry in entries:
             req = parser.ONFTTFlowMod(datapath=datapath, 
-                                      command=ofproto.OFPFC_ADD,
                                       port=entry[0], etype=entry[1],
                                       flow_id=entry[2],
                                       scheduled_time=entry[3],
@@ -82,6 +99,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                                       buffer_id=entry[5],
                                       pkt_size=entry[6])
             datapath.send_msg(req)
+        """
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):

@@ -17,13 +17,11 @@ import os
 
 def load_tt_flowtable(dirpath):
     schedule_path = os.path.join(dirpath, "schedule")
-    adapter_path = os.path.join(dirpath, "adapter")
-
-    flow_schedule_tb = []
+    # adapter_path = os.path.join(dirpath, "adapter")
+    flow_tb = []
     for maindir, subdir, filenames in os.walk(schedule_path):
         for tbfile in filenames:
-            port_str, etype_str = \
-                os.path.splitext(tbfile)[0].split('_')
+            port_str, etype_str = os.path.splitext(tbfile)[0].split('_')
             port_num = int(port_str[4:])
             etype_num = 0 if etype_str == "send" else 1  
             tb_path = os.path.join(schedule_path, tbfile)
@@ -33,11 +31,11 @@ def load_tt_flowtable(dirpath):
                     entry = tb.readline()
                     schd_time, period, flow_id, buffer_id, \
                             flow_size = entry.split()
-                    flow_schedule_tb.append([port_num, 
-                                             etype_num, flow_id, 
-                                             schd_time, period, 
-                                             buffer_id, flow_size])
-    return flow_schedule_tb
+                    flow_tb.append([port_num, 
+                                    etype_num, int(flow_id), 
+                                    int(schd_time), int(period), 
+                                    int(buffer_id), int(flow_size)])
+    return flow_tb
 
 
 def tt_flow_generator(dirpath):
@@ -60,9 +58,9 @@ def tt_flow_generator(dirpath):
 
 
 if __name__ == '__main__':
-    table_path = "/home/mininet/workspace/flowtb/tt_test"
-    # flowtb = load_tt_flowtable(table_path)
-    entry_generator = tt_flow_generator(table_path)
-    for entry in entry_generator:
+    table_path = "/home/chenwh/Workspace/Data/tt_test"
+    entries = load_tt_flowtable(table_path)
+    # entries = tt_flow_generator(table_path)
+    for entry in entries:
         print entry
 

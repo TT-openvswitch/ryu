@@ -75,11 +75,11 @@ class SimpleSwitch13(app_manager.RyuApp):
         self.TT_SCHD_TABLE = tt_tb.load_tt_flowtable(schedule_table_path)
         
         # Send download start control message
-        flow_num = len(self.TT_SCHD_TABLE)
+        flow_cnt = len(self.TT_SCHD_TABLE)
         req = parser.ONFTTFlowCtrl(datapath=datapath,
                                    command=ofproto.ONF_TFCC_ADD,
                                    type_=ofproto.ONF_TFCT_DOWNLOAD_START_REQUEST,
-                                   flow_number=flow_num)
+                                   flow_count=flow_cnt)
         datapath.send_msg(req)
        
     @set_ev_cls(ofp_event.EventONFTTFlowCtrl, MAIN_DISPATCHER)
@@ -96,16 +96,17 @@ class SimpleSwitch13(app_manager.RyuApp):
                 mod = parser.ONFTTFlowMod(datapath=datapath, 
                                       port=entry[0], etype=entry[1],
                                       flow_id=entry[2],
-                                      scheduled_time=entry[3],
+                                      base_offset=entry[3],
                                       period=entry[4],
                                       buffer_id=entry[5],
-                                      pkt_size=entry[6])
+                                      packet_size=entry[6],
+                                      execute_time=0)
                 datapath.send_msg(mod)
             # Send download end control message
             req = parser.ONFTTFlowCtrl(datapath=datapath,
                                    command=ofproto.ONF_TFCC_ADD,
                                    type_=ofproto.ONF_TFCT_DOWNLOAD_END_REQUEST,
-                                   flow_number=len(self.TT_SCHD_TABLE))
+                                   flow_count=len(self.TT_SCHD_TABLE))
             datapath.send_msg(req)
         elif msg.type == ofproto.ONF_TFCT_DOWNLOAD_END_REPLY:
             self.logger.info("tt schedule table download end!")

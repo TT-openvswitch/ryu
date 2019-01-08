@@ -6505,11 +6505,6 @@ class ONFTTFlowCtrl(OFPExperimenter):
     ================ ======================================================
     Attribute        Description
     ================ ======================================================
-    command          One of the following values.
-                     
-                     | ONF_TFCC_ADD
-                     | ONF_TFCC_CLEAR
-                     | ONF_TFCC_QUERY
     type             One of the following values.
 
                      | ONF_TFCT_DOWNLOAD_STRAT_REQUEST
@@ -6530,17 +6525,15 @@ class ONFTTFlowCtrl(OFPExperimenter):
             ofp_parser = datapath.ofproto_parser
 
             req = ofp_parser.ONFTTFlowCtrl(datapath, 
-                                           ofp.ONF_TFCC_ADD, 
                                            ofp.ONF_TFCT_DOWNLOAD_START_REQUEST,
                                            6)
             
             datapath.send_msg(req)
     """
-    def __init__(self, datapath, command=None, type_=None, flow_count=None):
+    def __init__(self, datapath, type_=None, flow_count=None):
         super(ONFTTFlowCtrl, self).__init__(
             datapath, ofproto_common.ONF_EXPERIMENTER_ID,
             ofproto.ONF_ET_TT_FLOW_CONTROL)
-        self.command = command
         self.type = type_
         self.flow_count = flow_count
 
@@ -6550,13 +6543,13 @@ class ONFTTFlowCtrl(OFPExperimenter):
                      self.experimenter, self.exp_type)
         msg_pack_into(ofproto.ONF_TT_FLOW_CTRL_PACK_STR,
                      self.buf, ofproto.OFP_EXPERIMENTER_HEADER_SIZE,
-                     self.command, self.type, self.flow_count)
+                     self.type, self.flow_count)
 
     @classmethod
     def parser_subtype(cls, super_msg):
-        (command, type_, flow_count) = struct.unpack_from(
+        (type_, flow_count) = struct.unpack_from(
             ofproto.ONF_TT_FLOW_CTRL_PACK_STR, super_msg.data)
-        msg = cls(super_msg.datapath, command, type_, flow_count)
+        msg = cls(super_msg.datapath, type_, flow_count)
         return msg
 
 

@@ -77,7 +77,6 @@ class SimpleSwitch13(app_manager.RyuApp):
         # Send download start control message
         flow_cnt = len(self.TT_SCHD_TABLE)
         req = parser.ONFTTFlowCtrl(datapath=datapath,
-                                   command=ofproto.ONF_TFCC_ADD,
                                    type_=ofproto.ONF_TFCT_DOWNLOAD_START_REQUEST,
                                    flow_count=flow_cnt)
         datapath.send_msg(req)
@@ -104,7 +103,6 @@ class SimpleSwitch13(app_manager.RyuApp):
                 datapath.send_msg(mod)
             # Send download end control message
             req = parser.ONFTTFlowCtrl(datapath=datapath,
-                                   command=ofproto.ONF_TFCC_ADD,
                                    type_=ofproto.ONF_TFCT_DOWNLOAD_END_REQUEST,
                                    flow_count=len(self.TT_SCHD_TABLE))
             datapath.send_msg(req)

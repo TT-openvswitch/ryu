@@ -20,16 +20,19 @@ from ryu.controller import ofp_event
 from ryu.controller.handler import CONFIG_DISPATCHER, MAIN_DISPATCHER
 from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ofproto_v1_3
+from ryu.lib.ovs import bridge as ovs_bridge
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet
 from ryu.lib.packet import ether_types
 
+OVSDB_PORT = 6640
 
 class SimpleSwitch13(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
     def __init__(self, *args, **kwargs):
         super(SimpleSwitch13, self).__init__(*args, **kwargs)
+        self.ovs = None
         self.mac_to_port = {}
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
@@ -71,7 +74,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         parser = datapath.ofproto_parser
 
         # Load TT schedule table
-        schedule_table_path = "/home/chenwh/Workspace/Data/tt_test"
+        schedule_table_path = "/home/chenwh/Workspace/TeamDoc/test_data/tt_test_sj"
         self.TT_SCHD_TABLE = tt_tb.load_tt_flowtable(schedule_table_path)
         
         # Send download start control message
@@ -80,7 +83,38 @@ class SimpleSwitch13(app_manager.RyuApp):
                                    type_=ofproto.ONF_TFCT_DOWNLOAD_START_REQUEST,
                                    flow_count=flow_cnt)
         datapath.send_msg(req)
-       
+     
+    def _get_ovs_bridge(self, datapath):
+        ovsdb_addr = 'tcp:%s:%d' % (datapath.address[0], OVSDB_PORT)
+        if (self.ovs is not None
+                and self.ovs.datapath_id == datapath.id
+                and self.ovs.vsctl.remote == ovsdb_addr):
+            return self.ovs
+
+        try:
+            self.ovs = ovs_bridge.OVSBridge(
+                CONF=self.CONF,
+                datapath_id=datapath.id,
+                ovsdb_addr=ovsdb_addr)
+            self.ovs.init()
+        except Exception as e:
+            self.logger.exception('Cannot initiate OVSDB connection: %s', e)
+            return None
+
+        return self.ovs
+
+    def _get_ofport(self, datapath, port_name):
+        ovs = self._get_ovs_bridge(datapath)
+        if ovs is None:
+            return None
+
+        try:
+            return ovs.get_ofport(port_name)
+        except Exception as e:
+            self.logger.debug('Cannot get port number for %s: %s',
+                              port_name, e)
+            return None
+  
     @set_ev_cls(ofp_event.EventONFTTFlowCtrl, MAIN_DISPATCHER)
     def _download_tt_flow_handler(self, ev):
         self.logger.info("tt flow control ev %s", ev)
@@ -92,8 +126,12 @@ class SimpleSwitch13(app_manager.RyuApp):
         if msg.type == ofproto.ONF_TFCT_DOWNLOAD_START_REPLY:
             # Download TT flow entries
             for entry in self.TT_SCHD_TABLE:
+                # Get true port by name
+                true_port = self._get_ofport(datapath, 's1-eth%d' % (entry[0]))
+                self.logger.info("Get s1-eth%d Port Number: %d", entry[0], true_port)
                 mod = parser.ONFTTFlowMod(datapath=datapath, 
-                                      port=entry[0], etype=entry[1],
+                                      port=true_port, 
+                                      etype=entry[1],
                                       flow_id=entry[2],
                                       base_offset=entry[3],
                                       period=entry[4],

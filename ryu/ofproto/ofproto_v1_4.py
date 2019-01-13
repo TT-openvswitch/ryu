@@ -1485,6 +1485,20 @@ OFP_BUNDLE_ADD_MSG_SIZE = 24
 assert (calcsize(OFP_BUNDLE_ADD_MSG_PACK_STR) + OFP_HEADER_SIZE ==
         OFP_BUNDLE_ADD_MSG_SIZE)
 
+# EXT: TT support (Chen Weihang) 
+
+# enum onf_exp_type
+ONF_ET_TT_FLOW_MOD = 2401
+
+ONF_TT_FLOW_MOD_PACK_STR = '!III4xQQIIQ'
+ONF_TT_FLOW_MOD_SIZE = 48
+assert (calcsize(ONF_TT_FLOW_MOD_PACK_STR) == 
+        ONF_TT_FLOW_MOD_SIZE)
+
+# enum onf_tt_entry_type
+ONF_TT_SEND = 0
+ONF_TT_RECV = 1
+
 # Note: struct ofp_prop_experimenter is specific to this implementation.
 # It does not have a corresponding structure in the specification.
 # This structure defines common structure for ofp_*_prop_experimenter.

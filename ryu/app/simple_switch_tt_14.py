@@ -70,17 +70,34 @@ class SimpleSwitch14(app_manager.RyuApp):
         schedule_table_path = "/home/chenwh/Workspace/Data/tt_test"
         self.TT_SCHD_TABLE = tt_tb.load_tt_flowtable(schedule_table_path)
         
-        # Send bundle open message
+        # Send download start control message
         flow_cnt = len(self.TT_SCHD_TABLE)
-        req = parser.OFPBundleCtrlMsg(datapath=datapath, 
+        req = parser.ONFTTFlowCtrl(datapath=datapath,
+                                   type_=ofproto.ONF_TFCT_ADD_TABLE_REQUEST,
+                                   flow_count=flow_cnt)
+        datapath.send_msg(req)
+    
+    @set_ev_cls(ofp_event.EventONFTTFlowCtrl, MAIN_DISPATCHER)
+    def _tt_flow_control_handler(self, ev):
+        self.logger.info("tt flow control ev %s", ev)
+        msg = ev.msg
+        datapath = msg.datapath
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
+
+        if msg.type == ofproto.ONF_TFCT_ADD_TABLE_REPLY:
+            # Download TT flow entries
+            req = parser.OFPBundleCtrlMsg(datapath=datapath, 
                                       bundle_id=1,
                                       type_=ofproto.OFPBCT_OPEN_REQUEST,
                                       flags=ofproto.OFPBF_ATOMIC, 
                                       properties=[])
-        datapath.send_msg(req)
-       
+            datapath.send_msg(req)
+        else:
+            self.logger.debug("error tt control message type!");
+
     @set_ev_cls(ofp_event.EventOFPBundleCtrlMsg, MAIN_DISPATCHER)
-    def _download_tt_flow_handler(self, ev):
+    def _tt_bundle_control_handler(self, ev):
         self.logger.info("tt bundle control ev %s", ev)
         msg = ev.msg
         datapath = msg.datapath
@@ -125,7 +142,7 @@ class SimpleSwitch14(app_manager.RyuApp):
             self.logger.info("tt bundle commit success!")
         else:
             self.logger.debug("tt bundle control errer!");
-
+   
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
         msg = ev.msg

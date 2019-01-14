@@ -74,7 +74,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         parser = datapath.ofproto_parser
 
         # Load TT schedule table
-        schedule_table_path = "/home/chenwh/Workspace/TeamDoc/test_data/tt_test_sj"
+        schedule_table_path = "/home/chenwh/Workspace/Data/tt_test"
         self.TT_SCHD_TABLE = tt_tb.load_tt_flowtable(schedule_table_path)
         
         # Send download start control message

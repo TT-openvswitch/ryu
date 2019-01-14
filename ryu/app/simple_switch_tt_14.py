@@ -20,10 +20,16 @@ from ryu.controller import ofp_event
 from ryu.controller.handler import CONFIG_DISPATCHER, MAIN_DISPATCHER
 from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ofproto_v1_4
+from ryu.lib.ovs import bridge as ovs_bridge
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet
 from ryu.lib.packet import ether_types
 
+OVSDB_PORT = 6640
+
+# enum bundle current state
+BUNDLE_CORRECT = 0
+BUNDLE_ERROR = 1
 
 class SimpleSwitch14(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_4.OFP_VERSION]
@@ -31,6 +37,8 @@ class SimpleSwitch14(app_manager.RyuApp):
     def __init__(self, *args, **kwargs):
         super(SimpleSwitch14, self).__init__(*args, **kwargs)
         self.mac_to_port = {}
+        self.ovs = None
+        self.bundle_state = BUNDLE_CORRECT
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -61,7 +69,38 @@ class SimpleSwitch14(app_manager.RyuApp):
         mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
                                 match=match, instructions=inst)
         datapath.send_msg(mod)
-    
+
+    def _get_ovs_bridge(self, datapath):
+        ovsdb_addr = 'tcp:%s:%d' % (datapath.address[0], OVSDB_PORT)
+        if (self.ovs is not None
+                and self.ovs.datapath_id == datapath.id
+                and self.ovs.vsctl.remote == ovsdb_addr):
+            return self.ovs
+
+        try:
+            self.ovs = ovs_bridge.OVSBridge(
+                CONF=self.CONF,
+                datapath_id=datapath.id,
+                ovsdb_addr=ovsdb_addr)
+            self.ovs.init()
+        except Exception as e:
+            self.logger.exception('Cannot initiate OVSDB connection: %s', e)
+            return None
+
+        return self.ovs
+
+    def _get_ofport(self, datapath, port_name):
+        ovs = self._get_ovs_bridge(datapath)
+        if ovs is None:
+            return None
+
+        try:
+            return ovs.get_ofport(port_name)
+        except Exception as e:
+            self.logger.debug('Cannot get port number for %s: %s',
+                              port_name, e)
+            return None
+
     def config_tt_flow(self, datapath):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
@@ -74,7 +113,8 @@ class SimpleSwitch14(app_manager.RyuApp):
         flow_cnt = len(self.TT_SCHD_TABLE)
         req = parser.ONFTTFlowCtrl(datapath=datapath,
                                    type_=ofproto.ONF_TFCT_ADD_TABLE_REQUEST,
-                                   flow_count=flow_cnt)
+                                   flow_count=flow_cnt,
+                                   properties=[])
         datapath.send_msg(req)
     
     @set_ev_cls(ofp_event.EventONFTTFlowCtrl, MAIN_DISPATCHER)
@@ -93,6 +133,10 @@ class SimpleSwitch14(app_manager.RyuApp):
                                       flags=ofproto.OFPBF_ATOMIC, 
                                       properties=[])
             datapath.send_msg(req)
+        elif msg.type == ofproto.ONF_TFCT_DELETE_TABLE_REPLY:
+            self.logger.info("tt flow table delete success.")
+        elif msg.type == ofproto.ONF_TFCT_QUERY_TABLE_REPLY:
+            self.logger.info("tt flow table query success.")
         else:
             self.logger.debug("error tt control message type!");
 
@@ -132,16 +176,38 @@ class SimpleSwitch14(app_manager.RyuApp):
         elif msg.type == ofproto.OFPBCT_CLOSE_REPLY:
             self.logger.info("tt bundle close success!")
             # Send bundle commit message
-            bcommit = parser.OFPBundleCtrlMsg(datapath=datapath, 
+            if self.bundle_state == BUNDLE_CORRECT:
+                bcommit = parser.OFPBundleCtrlMsg(datapath=datapath, 
                                               bundle_id=1,
                                               type_=ofproto.OFPBCT_COMMIT_REQUEST,
                                               flags=ofproto.OFPBF_ATOMIC, 
                                               properties=[])
-            datapath.send_msg(bcommit)
+                datapath.send_msg(bcommit)
         elif msg.type == ofproto.OFPBCT_COMMIT_REPLY:
             self.logger.info("tt bundle commit success!")
+        elif msg.type == ofproto.OFPBCT_DISCARD_REPLY:
+            self.logger.info("tt bundle discard success!")
         else:
             self.logger.debug("tt bundle control errer!");
+
+    @set_ev_cls(ofp_event.EventOFPErrorMsg, MAIN_DISPATCHER)
+    def _bundle_error_handler(self, ev):
+        msg = ev.msg
+        datapath = msg.datapath
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
+
+        if msg.type == OFPET_BUNDLE_FAILED:
+            self.bundle_state = BUNDLE_ERROR
+            bdiscard = parser.OFPBundleCtrlMsg(datapath=datapath, 
+                                              bundle_id=1,
+                                              type_=ofproto.OFPBCT_DISCARD_REQUEST,
+                                              flags=ofproto.OFPBF_ATOMIC, 
+                                              properties=[])
+            datapath.send_msg(bdiscard)
+        else:
+            pass
+        
    
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):

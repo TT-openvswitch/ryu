@@ -1174,6 +1174,12 @@ class OFPBundleProp(OFPPropBase):
 class OFPBundlePropExperimenter(OFPPropCommonExperimenter4ByteData):
     pass
 
+class ONFTTFlowProp(OFPPropBase):
+    _TYPES = {}
+
+@ONFTTFlowProp.register_type(ofproto.ONF_ET_TFPT_EXPERIMENTER)
+class ONFTTFlowPropExperimenter(OFPPropCommonExperimenter4ByteData):
+    pass
 
 @_register_parser
 @_set_msg_type(ofproto.OFPT_PACKET_IN)
@@ -5871,7 +5877,8 @@ class ONFTTFlowCtrl(OFPExperimenter):
                      | ONF_TFCT_DELETE_TABLE_REPLY
                      | ONF_TFCT_QUERY_TABLE_REQUEST
                      | ONF_TFCT_QUERY_TABLE_REPLY
-    flow_count      The count of flow. 
+    flow_count       The count of flow in this operation.
+    properties       List of ``ONFTTFlowProp`` subclass instance.
     ================ ======================================================
 
     Example::
@@ -5880,32 +5887,44 @@ class ONFTTFlowCtrl(OFPExperimenter):
             ofp = datapath.ofproto
             ofp_parser = datapath.ofproto_parser
 
-            req = ofp_parser.ONFTTFlowCtrl(datapath, 
+            req = ofp_parser.ONFTTFlowCtrl(datapath,
                                            ofp.ONF_TFCT_ADD_TABLE_REQUEST,
-                                           6)
+                                           6, [])
             
             datapath.send_msg(req)
     """
-    def __init__(self, datapath, type_=None, flow_count=None):
+    def __init__(self, datapath, type_=None, flow_count=None, properties=None):
         super(ONFTTFlowCtrl, self).__init__(
             datapath, ofproto_common.ONF_EXPERIMENTER_ID,
             ofproto.ONF_ET_TT_FLOW_CONTROL)
         self.type = type_
         self.flow_count = flow_count
+        self.properties = properties
 
     def _serialize_body(self):
+        bin_props = bytearray()
+        for p in self.properties:
+            bin_props += p.serialize()
+
         msg_pack_into(ofproto.OFP_EXPERIMENTER_HEADER_PACK_STR,
                       self.buf, ofproto.OFP_HEADER_SIZE,
                      self.experimenter, self.exp_type)
         msg_pack_into(ofproto.ONF_TT_FLOW_CTRL_PACK_STR,
                      self.buf, ofproto.OFP_EXPERIMENTER_HEADER_SIZE,
                      self.type, self.flow_count)
+        self.buf += bin_props
 
     @classmethod
     def parser_subtype(cls, super_msg):
         (type_, flow_count) = struct.unpack_from(
             ofproto.ONF_TT_FLOW_CTRL_PACK_STR, super_msg.data)
         msg = cls(super_msg.datapath, type_, flow_count)
+        msg.properties = []
+        rest = super_msg.data[ofproto.ONF_TT_FLOW_CTRL_SIZE:]
+        while rest:
+            p, rest = ONFTTFlowProp.parse(rest)
+            msg.properties.append(p)
+
         return msg
 
 

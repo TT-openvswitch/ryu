@@ -197,7 +197,7 @@ class SimpleSwitch14(app_manager.RyuApp):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
-        if msg.type == OFPET_BUNDLE_FAILED:
+        if msg.type == ofproto.OFPET_BUNDLE_FAILED:
             self.bundle_state = BUNDLE_ERROR
             bdiscard = parser.OFPBundleCtrlMsg(datapath=datapath, 
                                               bundle_id=1,

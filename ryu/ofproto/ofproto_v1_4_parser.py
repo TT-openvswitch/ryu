@@ -16,6 +16,8 @@
 
 """
 Decoder/Encoder implementations of OpenFlow 1.4.
+
+Chen Weihang: add TT flow mod message support
 """
 
 import struct
@@ -50,6 +52,15 @@ def _register_parser(cls):
     assert cls.cls_msg_type not in _MSG_PARSERS
     _MSG_PARSERS[cls.cls_msg_type] = cls.parser
     return cls
+
+
+def _register_exp_type(experimenter, exp_type):
+    assert exp_type not in OFPExperimenter._subtypes
+
+    def _wrapper(cls):
+        OFPExperimenter._subtypes[(experimenter, exp_type)] = cls
+        return cls
+    return _wrapper
 
 
 @ofproto_parser.register_msg_parser(ofproto.OFP_VERSION)
@@ -407,6 +418,7 @@ class OFPExperimenter(MsgBase):
     data          Experimenter defined arbitrary additional data
     ============= =========================================================
     """
+    _subtypes = {}
 
     def __init__(self, datapath, experimenter=None, exp_type=None, data=None):
         super(OFPExperimenter, self).__init__(datapath)
@@ -423,6 +435,13 @@ class OFPExperimenter(MsgBase):
             ofproto.OFP_EXPERIMENTER_HEADER_PACK_STR, msg.buf,
             ofproto.OFP_HEADER_SIZE)
         msg.data = msg.buf[ofproto.OFP_EXPERIMENTER_HEADER_SIZE:]
+        if (msg.experimenter, msg.exp_type) in cls._subtypes:
+            new_msg = cls._subtypes[
+                (msg.experimenter, msg.exp_type)].parser_subtype(msg)
+            new_msg.set_headers(msg.version, msg.msg_type, msg.msg_len,
+                                msg.xid)
+            new_msg.set_buf(msg.buf)
+            return new_msg
 
         return msg
 
@@ -1155,6 +1174,12 @@ class OFPBundleProp(OFPPropBase):
 class OFPBundlePropExperimenter(OFPPropCommonExperimenter4ByteData):
     pass
 
+class ONFTTFlowProp(OFPPropBase):
+    _TYPES = {}
+
+@ONFTTFlowProp.register_type(ofproto.ONF_ET_TFPT_EXPERIMENTER)
+class ONFTTFlowPropExperimenter(OFPPropCommonExperimenter4ByteData):
+    pass
 
 @_register_parser
 @_set_msg_type(ofproto.OFPT_PACKET_IN)
@@ -5831,6 +5856,156 @@ class OFPBundleAddMsg(MsgInMsgBase):
 
         # Finish
         self.buf += tail_buf
+
+
+@_register_exp_type(ofproto_common.ONF_EXPERIMENTER_ID,
+                    ofproto.ONF_ET_TT_FLOW_CONTROL)
+class ONFTTFlowCtrl(OFPExperimenter):
+    """
+    Time-Triggered Flow Control 
+
+    The controller use this message to tell switch the info of TT flow.
+
+    ================ ======================================================
+    Attribute        Description
+    ================ ======================================================
+    type             One of the following values.
+
+                     | ONF_TFCT_ADD_TABLE_REQUEST
+                     | ONF_TFCT_ADD_TABLE_REPLY
+                     | ONF_TFCT_DELETE_TABLE_REQUEST
+                     | ONF_TFCT_DELETE_TABLE_REPLY
+                     | ONF_TFCT_QUERY_TABLE_REQUEST
+                     | ONF_TFCT_QUERY_TABLE_REPLY
+    flow_count       The count of flow in this operation.
+    properties       List of ``ONFTTFlowProp`` subclass instance.
+    ================ ======================================================
+
+    Example::
+
+        def send_tt_flow_ctrl(self, datapath):
+            ofp = datapath.ofproto
+            ofp_parser = datapath.ofproto_parser
+
+            req = ofp_parser.ONFTTFlowCtrl(datapath,
+                                           ofp.ONF_TFCT_ADD_TABLE_REQUEST,
+                                           6, [])
+            
+            datapath.send_msg(req)
+    """
+    def __init__(self, datapath, type_=None, flow_count=None, properties=None):
+        super(ONFTTFlowCtrl, self).__init__(
+            datapath, ofproto_common.ONF_EXPERIMENTER_ID,
+            ofproto.ONF_ET_TT_FLOW_CONTROL)
+        self.type = type_
+        self.flow_count = flow_count
+        self.properties = properties
+
+    def _serialize_body(self):
+        bin_props = bytearray()
+        for p in self.properties:
+            bin_props += p.serialize()
+
+        msg_pack_into(ofproto.OFP_EXPERIMENTER_HEADER_PACK_STR,
+                      self.buf, ofproto.OFP_HEADER_SIZE,
+                     self.experimenter, self.exp_type)
+        msg_pack_into(ofproto.ONF_TT_FLOW_CTRL_PACK_STR,
+                     self.buf, ofproto.OFP_EXPERIMENTER_HEADER_SIZE,
+                     self.type, self.flow_count)
+        self.buf += bin_props
+
+    @classmethod
+    def parser_subtype(cls, super_msg):
+        (type_, flow_count) = struct.unpack_from(
+            ofproto.ONF_TT_FLOW_CTRL_PACK_STR, super_msg.data)
+        msg = cls(super_msg.datapath, type_, flow_count)
+        msg.properties = []
+        rest = super_msg.data[ofproto.ONF_TT_FLOW_CTRL_SIZE:]
+        while rest:
+            p, rest = ONFTTFlowProp.parse(rest)
+            msg.properties.append(p)
+
+        return msg
+
+
+@_register_exp_type(ofproto_common.ONF_EXPERIMENTER_ID,
+                    ofproto.ONF_ET_TT_FLOW_MOD)
+class ONFTTFlowMod(OFPExperimenter):
+    """
+    Time-Triggered Flow Modify
+
+    The controller sends this message to download the TT flow table.
+
+    ================ ======================================================
+    Attribute        Description
+    ================ ======================================================
+    port             The entry related port.
+    etype            Send entry or receive entry.
+    flow_id          The identify of a flow.
+    base_offset      The schedule time when packet is sent or received.
+    period           The scheduling period.
+    buffer_id        Buffered packet to apply to.
+    packet_size      The flow packet size.
+    execute_time     The time this entry take effect.
+    
+    ================ ======================================================
+    
+    Example::
+
+        def send_tt_flow_mod(self, datapath):
+            ofp = datapath.ofproto
+            ofp_parser = datapath.ofproto_parser
+
+            port = 1
+            etype = ofp.ONF_TT_SEND
+            flow_id = 2
+            base_offset = 17408
+            period = 8388608
+            buffer_id = 1
+            packet_size = 64
+            execute_time = 0
+
+            req = ofp_parser.ONFTTFlowMod(datapath, port, etype,
+                                          flow_id, base_offset, period,
+                                          buffer_id, packet_size, execute_time)
+            datapath.send_msg(req)
+    """
+
+    def __init__(self, datapath, port=None, 
+                 etype=None, flow_id=None,
+                 base_offset=None, period=None,
+                 buffer_id=None, packet_size=None, execute_time=None):
+        super(ONFTTFlowMod, self).__init__(
+            datapath, ofproto_common.ONF_EXPERIMENTER_ID,
+            ofproto.ONF_ET_TT_FLOW_MOD)
+        self.port = port
+        self.etype = etype
+        self.flow_id = flow_id
+        self.base_offset = base_offset
+        self.period = period
+        self.buffer_id = buffer_id
+        self.packet_size = packet_size
+        self.execute_time = execute_time
+
+    def _serialize_body(self):
+        msg_pack_into(ofproto.OFP_EXPERIMENTER_HEADER_PACK_STR,
+                      self.buf, ofproto.OFP_HEADER_SIZE,
+                      self.experimenter, self.exp_type)
+        msg_pack_into(ofproto.ONF_TT_FLOW_MOD_PACK_STR, self.buf,
+                      ofproto.OFP_EXPERIMENTER_HEADER_SIZE,
+                      self.port, self.etype, self.flow_id, 
+                      self.base_offset, self.period, 
+                      self.buffer_id, self.packet_size, self.execute_time)
+       
+    @classmethod
+    def parser_subtype(cls, super_msg):
+        (port, etype, flow_id, base_offset, period, buffer_id, 
+            packet_size, execute_time) = struct.unpack_from(
+            ofproto.ONF_TT_FLOW_MOD_PACK_STR, super_msg.data)
+        msg = cls(super_msg.datapath, port, etype, flow_id, 
+                  base_offset, period, buffer_id, 
+                  packet_size, execute_time)
+        return msg
 
 
 nx_actions.generate(

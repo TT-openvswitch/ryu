@@ -687,7 +687,6 @@ OFP_METER_MOD_SIZE = 16
 assert (calcsize(OFP_METER_MOD_PACK_STR) + OFP_HEADER_SIZE ==
         OFP_METER_MOD_SIZE)
 
-
 # enum ofp_error_type
 OFPET_HELLO_FAILED = 0              # Hello protocol failed.
 OFPET_BAD_REQUEST = 1               # Request was not understood.
@@ -936,6 +935,18 @@ OFPBFC_MSG_FAILED = 13          # One message in bundle failed.
 OFPBFC_TIMEOUT = 14             # Bundle is taking too long.
 OFPBFC_BUNDLE_IN_PROGRESS = 15  # Bundle is locking the resource.
 
+# EXT: TT support (Chen Weihang)
+# enum onf_error_exp_code for ofp_error_experimenter_msg
+ONFERR_ET_TFC_UNKNOWN = 2400    # Unspecified error.
+ONFERR_ET_TFC_BAD_CMD = 2401    # Unsupported or unknown tt flow control command.
+ONFERR_ET_TFC_BAD_CTRL_TYPE = 2402  # Unsupported or unknown message control type.
+ONFERR_ET_TFC_BAD_PORT = 2403   # Unsupported or unknown switch port.
+ONFERR_ET_TFC_BAD_ENTRY_TYPE = 2404  # Unsupported or unhnown entry type.
+ONFERR_ET_TFC_BAD_FLOW_ID = 2405  # Unsupported or unhnown flow id.
+ONFERR_ET_TFC_BAD_BUF_ID = 2406   # Unsupported or unhnown buffer id.
+ONFERR_ET_TFC_FLOW_NUM_ERROR = 2407
+ONFERR_ET_TFC_TIMEOUT = 2408
+
 # struct ofp_error_msg
 OFP_ERROR_MSG_PACK_STR = '!HH'
 OFP_ERROR_MSG_SIZE = 12
@@ -953,6 +964,36 @@ OFP_EXPERIMENTER_HEADER_PACK_STR = '!II'
 OFP_EXPERIMENTER_HEADER_SIZE = 16
 assert (calcsize(OFP_EXPERIMENTER_HEADER_PACK_STR) + OFP_HEADER_SIZE
         == OFP_EXPERIMENTER_HEADER_SIZE)
+
+# EXT: TT support (Chen Weihang)
+# enum onf_exp_type
+ONF_ET_TT_FLOW_CONTROL = 2400
+ONF_ET_TT_FLOW_MOD = 2401
+
+ONF_TT_FLOW_CTRL_PACK_STR = '!II'
+ONF_TT_FLOW_CTRL_SIZE = 8
+assert (calcsize(ONF_TT_FLOW_CTRL_PACK_STR) ==
+        ONF_TT_FLOW_CTRL_SIZE)
+
+ONF_TT_FLOW_MOD_PACK_STR = '!III4xQQIIQ'
+ONF_TT_FLOW_MOD_SIZE = 48
+assert (calcsize(ONF_TT_FLOW_MOD_PACK_STR) ==
+        ONF_TT_FLOW_MOD_SIZE)
+
+# enum onf_tt_flow_ctrl_type
+ONF_TFCT_ADD_TABLE_REQUEST = 0
+ONF_TFCT_ADD_TABLE_REPLY = 1
+ONF_TFCT_DELETE_TABLE_REQUEST = 2
+ONF_TFCT_DELETE_TABLE_REPLY = 3
+ONF_TFCT_QUERY_TABLE_REQUEST = 4
+ONF_TFCT_QUERY_TABLE_REPLY = 5
+
+# enum onf_tt_entry_type
+ONF_TT_SEND = 0
+ONF_TT_RECV = 1
+
+# enum onf_tt_flow_prop_type
+ONF_ET_TFPT_EXPERIMENTER = 0xffff
 
 # enum ofp_multipart_type
 OFPMP_DESC = 0

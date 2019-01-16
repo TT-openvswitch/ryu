@@ -5939,6 +5939,7 @@ class ONFTTFlowMod(OFPExperimenter):
     ================ ======================================================
     Attribute        Description
     ================ ======================================================
+    table_id         The ID of TT table.
     metadata         The head entry flag and total flow conut.
     port             The entry related port.
     etype            Send entry or receive entry.
@@ -5956,6 +5957,7 @@ class ONFTTFlowMod(OFPExperimenter):
             ofp = datapath.ofproto
             ofp_parser = datapath.ofproto_parser
 
+            table_id = 1
             metadata = 0x1001
             port = 1
             etype = ofp.ONF_TT_SEND
@@ -5966,18 +5968,19 @@ class ONFTTFlowMod(OFPExperimenter):
             packet_size = 64
             execute_time = 0
 
-            req = ofp_parser.ONFTTFlowMod(datapath, metadata, port, etype,
-                                          flow_id, base_offset, period,
+            req = ofp_parser.ONFTTFlowMod(datapath, table_id, metadata, port,
+                                          etype, flow_id, base_offset, period,
                                           buffer_id, packet_size, execute_time)
             datapath.send_msg(req)
     """
 
-    def __init__(self, datapath, metadata=None, port=None, etype=None,
+    def __init__(self, datapath, table_id=None, metadata=None, port=None, etype=None,
                  flow_id=None, base_offset=None, period=None,
                  buffer_id=None, packet_size=None, execute_time=None):
         super(ONFTTFlowMod, self).__init__(
             datapath, ofproto_common.ONF_EXPERIMENTER_ID,
             ofproto.ONF_ET_TT_FLOW_MOD)
+        self.table_id = table_id
         self.metadata = metadata
         self.port = port
         self.etype = etype
@@ -5994,19 +5997,19 @@ class ONFTTFlowMod(OFPExperimenter):
                       self.experimenter, self.exp_type)
         msg_pack_into(ofproto.ONF_TT_FLOW_MOD_PACK_STR, self.buf,
                       ofproto.OFP_EXPERIMENTER_HEADER_SIZE,
-                      self.metadata, self.port, self.etype,
+                      self.table_id, self.metadata, self.port, self.etype,
                       self.flow_id, self.base_offset, self.period,
                       self.buffer_id, self.packet_size, self.execute_time)
        
     @classmethod
     def parser_subtype(cls, super_msg):
-        (metadata, port, etype, flow_id, base_offset, period, buffer_id,
-            packet_size, execute_time) = struct.unpack_from(
-            ofproto.ONF_TT_FLOW_MOD_PACK_STR, super_msg.data)
-        msg = cls(super_msg.datapath, metadata,
-                  port, etype, flow_id,
-                  base_offset, period, buffer_id,
-                  packet_size, execute_time)
+        (table_id, metadata, port, etype, flow_id, base_offset,
+            period, buffer_id, packet_size, execute_time) \
+                = struct.unpack_from(ofproto.ONF_TT_FLOW_MOD_PACK_STR, 
+                                     super_msg.data)
+        msg = cls(super_msg.datapath, table_id, metadata,
+                  port, etype, flow_id, base_offset,
+                  period, buffer_id, packet_size, execute_time)
         return msg
 
 

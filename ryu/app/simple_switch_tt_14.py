@@ -161,6 +161,7 @@ class SimpleSwitch14(app_manager.RyuApp):
                 else:
                     pass
                 mod = parser.ONFTTFlowMod(datapath=datapath, 
+                                          table_id=self.table_id,
                                           metadata=mdata,
                                           port=entry[0],
                                           etype=entry[1],

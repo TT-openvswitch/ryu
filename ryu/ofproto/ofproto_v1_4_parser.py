@@ -5916,7 +5916,7 @@ class ONFTTFlowCtrl(OFPExperimenter):
 
     @classmethod
     def parser_subtype(cls, super_msg):
-        (type_, flow_count) = struct.unpack_from(
+        (table_id, type_) = struct.unpack_from(
             ofproto.ONF_TT_FLOW_CTRL_PACK_STR, super_msg.data)
         msg = cls(super_msg.datapath, table_id, type_)
         msg.properties = []

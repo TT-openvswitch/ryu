@@ -155,7 +155,7 @@ class SimpleSwitch14(app_manager.RyuApp):
             for i, entry in enumerate(self.TT_SCHD_TABLE):
                 mdata = 0
                 if i == 0:
-                    mdata = (1 << 24) | flow_count
+                    mdata = (1 << 24) | flow_cnt
                 elif i == flow_cnt-1:
                     mdata = 2 << 24
                 else:

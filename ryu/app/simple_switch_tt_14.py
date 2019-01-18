@@ -110,16 +110,16 @@ class SimpleSwitch14(app_manager.RyuApp):
         self.TT_SCHD_TABLE = tt_tb.load_tt_flowtable(schedule_table_path)
         
         # Send download start control message
-        flow_cnt = len(self.TT_SCHD_TABLE)
+        self.table_id = 1
         req = parser.ONFTTFlowCtrl(datapath=datapath,
+                                   table_id=self.table_id,
                                    type_=ofproto.ONF_TFCT_ADD_TABLE_REQUEST,
-                                   flow_count=flow_cnt,
                                    properties=[])
         datapath.send_msg(req)
     
     @set_ev_cls(ofp_event.EventONFTTFlowCtrl, MAIN_DISPATCHER)
     def _tt_flow_control_handler(self, ev):
-        self.logger.info("tt flow control ev %s", ev)
+        self.logger.info("thurtsdn: tt flow control ev %s", ev)
         msg = ev.msg
         datapath = msg.datapath
         ofproto = datapath.ofproto
@@ -128,32 +128,43 @@ class SimpleSwitch14(app_manager.RyuApp):
         if msg.type == ofproto.ONF_TFCT_ADD_TABLE_REPLY:
             # Download TT flow entries
             req = parser.OFPBundleCtrlMsg(datapath=datapath, 
-                                      bundle_id=1,
+                                      bundle_id=self.table_id,
                                       type_=ofproto.OFPBCT_OPEN_REQUEST,
                                       flags=ofproto.OFPBF_ATOMIC, 
                                       properties=[])
             datapath.send_msg(req)
         elif msg.type == ofproto.ONF_TFCT_DELETE_TABLE_REPLY:
-            self.logger.info("tt flow table delete success.")
+            self.logger.info("thurtsdn: tt flow table delete success.")
         elif msg.type == ofproto.ONF_TFCT_QUERY_TABLE_REPLY:
-            self.logger.info("tt flow table query success.")
+            self.logger.info("thurtsdn: tt flow table query success.")
         else:
-            self.logger.debug("error tt control message type!");
+            self.logger.debug("thurtsdn: error tt control message type!");
 
     @set_ev_cls(ofp_event.EventOFPBundleCtrlMsg, MAIN_DISPATCHER)
     def _tt_bundle_control_handler(self, ev):
-        self.logger.info("tt bundle control ev %s", ev)
+        self.logger.info("thurtsdn: tt bundle control ev %s", ev)
         msg = ev.msg
         datapath = msg.datapath
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
         if msg.type == ofproto.OFPBCT_OPEN_REPLY:
-            self.logger.info("tt bundle open success!")
+            self.logger.info("thurtsdn: tt bundle open success!")
             # Download TT flow entries
-            for entry in self.TT_SCHD_TABLE:
+            flow_cnt = len(self.TT_SCHD_TABLE)
+            for i, entry in enumerate(self.TT_SCHD_TABLE):
+                mdata = 0
+                if i == 0:
+                    mdata = (1 << 24) | flow_cnt
+                elif i == flow_cnt-1:
+                    mdata = 2 << 24
+                else:
+                    pass
                 mod = parser.ONFTTFlowMod(datapath=datapath, 
-                                          port=entry[0], etype=entry[1],
+                                          table_id=self.table_id,
+                                          metadata=mdata,
+                                          port=entry[0],
+                                          etype=entry[1],
                                           flow_id=entry[2],
                                           base_offset=entry[3],
                                           period=entry[4],
@@ -161,34 +172,34 @@ class SimpleSwitch14(app_manager.RyuApp):
                                           packet_size=entry[6],
                                           execute_time=0)
                 badd = parser.OFPBundleAddMsg(datapath=datapath, 
-                                              bundle_id=1,
+                                              bundle_id=self.table_id,
                                               flags=ofproto.OFPBF_ATOMIC,
                                               message=mod, 
                                               properties=[])
                 datapath.send_msg(badd)
             # Send bundle close message
             bclose = parser.OFPBundleCtrlMsg(datapath=datapath, 
-                                             bundle_id=1,
+                                             bundle_id=self.table_id,
                                              type_=ofproto.OFPBCT_CLOSE_REQUEST,
                                              flags=ofproto.OFPBF_ATOMIC, 
                                              properties=[])
             datapath.send_msg(bclose)
         elif msg.type == ofproto.OFPBCT_CLOSE_REPLY:
-            self.logger.info("tt bundle close success!")
+            self.logger.info("thurtsdn: tt bundle close success!")
             # Send bundle commit message
             if self.bundle_state == BUNDLE_CORRECT:
                 bcommit = parser.OFPBundleCtrlMsg(datapath=datapath, 
-                                              bundle_id=1,
+                                              bundle_id=self.table_id,
                                               type_=ofproto.OFPBCT_COMMIT_REQUEST,
                                               flags=ofproto.OFPBF_ATOMIC, 
                                               properties=[])
                 datapath.send_msg(bcommit)
         elif msg.type == ofproto.OFPBCT_COMMIT_REPLY:
-            self.logger.info("tt bundle commit success!")
+            self.logger.info("thurtsdn: tt bundle commit success!")
         elif msg.type == ofproto.OFPBCT_DISCARD_REPLY:
-            self.logger.info("tt bundle discard success!")
+            self.logger.info("thurtsdn: tt bundle discard success!")
         else:
-            self.logger.debug("tt bundle control errer!");
+            self.logger.debug("thurtsdn: tt bundle control errer!");
 
     @set_ev_cls(ofp_event.EventOFPErrorMsg, MAIN_DISPATCHER)
     def _bundle_error_handler(self, ev):
@@ -200,7 +211,7 @@ class SimpleSwitch14(app_manager.RyuApp):
         if msg.type == ofproto.OFPET_BUNDLE_FAILED:
             self.bundle_state = BUNDLE_ERROR
             bdiscard = parser.OFPBundleCtrlMsg(datapath=datapath, 
-                                              bundle_id=1,
+                                              bundle_id=self.table_id,
                                               type_=ofproto.OFPBCT_DISCARD_REQUEST,
                                               flags=ofproto.OFPBF_ATOMIC, 
                                               properties=[])

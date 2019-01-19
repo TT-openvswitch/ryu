@@ -937,15 +937,20 @@ OFPBFC_BUNDLE_IN_PROGRESS = 15  # Bundle is locking the resource.
 
 # EXT: TT support (Chen Weihang)
 # enum onf_error_exp_code for ofp_error_experimenter_msg
-ONFERR_ET_TFC_UNKNOWN = 2400    # Unspecified error.
-ONFERR_ET_TFC_BAD_CMD = 2401    # Unsupported or unknown tt flow control command.
-ONFERR_ET_TFC_BAD_CTRL_TYPE = 2402  # Unsupported or unknown message control type.
-ONFERR_ET_TFC_BAD_PORT = 2403   # Unsupported or unknown switch port.
-ONFERR_ET_TFC_BAD_ENTRY_TYPE = 2404  # Unsupported or unhnown entry type.
-ONFERR_ET_TFC_BAD_FLOW_ID = 2405  # Unsupported or unhnown flow id.
-ONFERR_ET_TFC_BAD_BUF_ID = 2406   # Unsupported or unhnown buffer id.
-ONFERR_ET_TFC_FLOW_NUM_ERROR = 2407
-ONFERR_ET_TFC_TIMEOUT = 2408
+ONFERR_ET_UNKNOWN = 2400        # [Key] Unspecified error.
+ONFERR_ET_BAD_ID = 2401         # Table ID doesn't exist.
+ONFERR_ET_BAD_TYPE = 2402       # unsupported or unknown control type.
+ONFERR_ET_BAD_FLOW_CNT = 2403   # [Key] The number of flow tables received didn't match expectations.
+ONFERR_ET_BAD_PORT = 2404       # Unsupported or unknown switch port.
+ONFERR_ET_BAD_ENTRY_TYPE = 2405 # Unsupported or unhnown entry type.
+ONFERR_ET_BAD_FLOW_ID = 2406    # Unsupported or unhnown flow id.
+ONFERR_ET_BAD_BUF_ID = 2407     # Unsupported or unhnown buffer id.
+ONFERR_ET_TT_UNSUPPORTED = 2408 # [Key] TT is not supported in this ovs.
+ONFERR_ET_BAD_MATCH = 2409      # [Key] The packet didn't match any TT entry.
+ONFERR_ET_MISS_SCHED_TIME = 2410# [Key] Missing scheduled time results in packet drop.
+ONFERR_ET_TABLE_FULL = 2411     # The TT schedule table is full.
+ONFERR_ET_OVERLAP = 2412        # The download entry already exist.
+ONFERR_ET_BAD_TIMEOUT = 2413    # Timeout when receive packet.
 
 # struct ofp_error_msg
 OFP_ERROR_MSG_PACK_STR = '!HH'

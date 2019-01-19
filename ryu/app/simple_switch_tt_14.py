@@ -155,9 +155,9 @@ class SimpleSwitch14(app_manager.RyuApp):
             for i, entry in enumerate(self.TT_SCHD_TABLE):
                 mdata = 0
                 if i == 0:
-                    mdata = (1 << 24) | flow_cnt
+                    mdata = 1 << 24
                 elif i == flow_cnt-1:
-                    mdata = 2 << 24
+                    mdata = (2 << 24) | flow_cnt
                 else:
                     pass
                 mod = parser.ONFTTFlowMod(datapath=datapath, 

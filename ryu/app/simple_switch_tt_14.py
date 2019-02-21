@@ -119,12 +119,12 @@ class SimpleSwitch14(app_manager.RyuApp):
     
     @set_ev_cls(ofp_event.EventONFTTFlowCtrl, MAIN_DISPATCHER)
     def _tt_flow_control_handler(self, ev):
-        self.logger.info("thurtsdn: tt flow control ev %s", ev)
         msg = ev.msg
         datapath = msg.datapath
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
-
+        self.logger.info("thurtsdn: s%d tt flow control event.", datapath.id)
+        
         if msg.type == ofproto.ONF_TFCT_ADD_TABLE_REPLY:
             # Download TT flow entries
             req = parser.OFPBundleCtrlMsg(datapath=datapath, 
@@ -134,22 +134,22 @@ class SimpleSwitch14(app_manager.RyuApp):
                                       properties=[])
             datapath.send_msg(req)
         elif msg.type == ofproto.ONF_TFCT_DELETE_TABLE_REPLY:
-            self.logger.info("thurtsdn: tt flow table delete success.")
+            self.logger.info("thurtsdn: s%d tt flow table delete success.", datapath.id)
         elif msg.type == ofproto.ONF_TFCT_QUERY_TABLE_REPLY:
-            self.logger.info("thurtsdn: tt flow table query success.")
+            self.logger.info("thurtsdn: s%d tt flow table query success.", datapath.id)
         else:
-            self.logger.debug("thurtsdn: error tt control message type!");
+            self.logger.debug("thurtsdn: s%d error tt control message type!", datapath.id);
 
     @set_ev_cls(ofp_event.EventOFPBundleCtrlMsg, MAIN_DISPATCHER)
     def _tt_bundle_control_handler(self, ev):
-        self.logger.info("thurtsdn: tt bundle control ev %s", ev)
         msg = ev.msg
         datapath = msg.datapath
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
-
+        self.logger.info("thurtsdn: s%d tt bundle control event.", datapath.id)
+        
         if msg.type == ofproto.OFPBCT_OPEN_REPLY:
-            self.logger.info("thurtsdn: tt bundle open success!")
+            self.logger.info("thurtsdn: s%d tt bundle open success!", datapath.id)
             # Download TT flow entries
             flow_cnt = len(self.TT_SCHD_TABLE)
             for i, entry in enumerate(self.TT_SCHD_TABLE):
@@ -185,7 +185,7 @@ class SimpleSwitch14(app_manager.RyuApp):
                                              properties=[])
             datapath.send_msg(bclose)
         elif msg.type == ofproto.OFPBCT_CLOSE_REPLY:
-            self.logger.info("thurtsdn: tt bundle close success!")
+            self.logger.info("thurtsdn: s%d tt bundle close success!", datapath.id)
             # Send bundle commit message
             if self.bundle_state == BUNDLE_CORRECT:
                 bcommit = parser.OFPBundleCtrlMsg(datapath=datapath, 
@@ -195,11 +195,11 @@ class SimpleSwitch14(app_manager.RyuApp):
                                               properties=[])
                 datapath.send_msg(bcommit)
         elif msg.type == ofproto.OFPBCT_COMMIT_REPLY:
-            self.logger.info("thurtsdn: tt bundle commit success!")
+            self.logger.info("thurtsdn: s%d tt bundle commit success!", datapath.id)
         elif msg.type == ofproto.OFPBCT_DISCARD_REPLY:
-            self.logger.info("thurtsdn: tt bundle discard success!")
+            self.logger.info("thurtsdn: s%d tt bundle discard success!", datapath.id)
         else:
-            self.logger.debug("thurtsdn: tt bundle control errer!");
+            self.logger.debug("thurtsdn: s%d tt bundle control errer!", datapath.id);
 
     @set_ev_cls(ofp_event.EventOFPErrorMsg, MAIN_DISPATCHER)
     def _bundle_error_handler(self, ev):

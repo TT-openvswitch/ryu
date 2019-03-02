@@ -106,16 +106,19 @@ class SimpleSwitch14(app_manager.RyuApp):
         parser = datapath.ofproto_parser
 
         # Load TT schedule table
-        schedule_table_path = "/home/chenwh/Workspace/Data/tt_test"
-        self.TT_SCHD_TABLE = tt_tb.load_tt_flowtable(schedule_table_path)
-        
-        # Send download start control message
-        self.table_id = 1
-        req = parser.ONFTTFlowCtrl(datapath=datapath,
+        schedule_table_path = "/home/chenwh/Workspace/Data/minimal"
+        tables = tt_tb.tt_table_generator(schedule_table_path)
+        for switch_index, table in enumerate(tables):  
+            self.TT_SCHD_TABLE = table
+            # compare switch ID
+            if datapath.id == switch_index + 1:
+                # Send download start control message
+                self.table_id = 1
+                req = parser.ONFTTFlowCtrl(datapath=datapath,
                                    table_id=self.table_id,
                                    type_=ofproto.ONF_TFCT_ADD_TABLE_REQUEST,
                                    properties=[])
-        datapath.send_msg(req)
+                datapath.send_msg(req)
     
     @set_ev_cls(ofp_event.EventONFTTFlowCtrl, MAIN_DISPATCHER)
     def _tt_flow_control_handler(self, ev):

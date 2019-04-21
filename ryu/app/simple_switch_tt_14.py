@@ -106,7 +106,7 @@ class SimpleSwitch14(app_manager.RyuApp):
         parser = datapath.ofproto_parser
 
         # Load TT schedule table
-        schedule_table_path = "/home/chenwh/Workspace/Data/minimal"
+        schedule_table_path = "/home/chenwh/Workspace/data/minimal"
         tables = tt_tb.tt_table_generator(schedule_table_path)
         for switch_index, table in enumerate(tables):  
             self.TT_SCHD_TABLE = table

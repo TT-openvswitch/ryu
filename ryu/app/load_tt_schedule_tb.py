@@ -69,7 +69,7 @@ def tt_table_generator(dirpath):
 
 
 if __name__ == '__main__':
-    table_path = "/home/chenwh/Workspace/Data/minimal"
+    table_path = "/home/chenwh/Workspace/data/minimal"
     # all_tables = load_tt_flowtable(table_path)
     all_tables = tt_flow_generator(table_path)
     for table in all_tables:

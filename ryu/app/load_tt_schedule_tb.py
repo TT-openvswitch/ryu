@@ -18,7 +18,7 @@ import os
 def load_tt_flowtable(dirpath):
     schedule_path = os.path.join(dirpath, "tables")
     # adapter_path = os.path.join(dirpath, "adapter")
-    all_tables = []
+    all_tables = {}
     for _, subdir, _ in os.walk(schedule_path):
         for switch in subdir:
             flow_tb = []
@@ -39,8 +39,7 @@ def load_tt_flowtable(dirpath):
                                             etype_num, int(flow_id), 
                                             int(schd_time), int(period), 
                                             int(buffer_id), int(flow_size)])
-            all_tables.append(flow_tb)
-    print(all_tables)
+                            all_tables[int(switch[-1])+1] = flow_tb
     return all_tables
 
 
@@ -69,9 +68,8 @@ def tt_table_generator(dirpath):
 
 
 if __name__ == '__main__':
-    table_path = "/home/chenwh/Workspace/data/minimal"
-    # all_tables = load_tt_flowtable(table_path)
-    all_tables = tt_flow_generator(table_path)
-    for table in all_tables:
-        print table
+    table_path = "/home/chenwh/Workspace/data/linear"
+    all_tables = load_tt_flowtable(table_path)
+    # all_tables = tt_table_generator(table_path)
+    print all_tables
 

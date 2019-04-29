@@ -39,6 +39,7 @@ class SimpleSwitch14(app_manager.RyuApp):
         self.mac_to_port = {}
         self.ovs = None
         self.bundle_state = BUNDLE_CORRECT
+        self.TT_SCHD_TABLES = {}
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -106,19 +107,16 @@ class SimpleSwitch14(app_manager.RyuApp):
         parser = datapath.ofproto_parser
 
         # Load TT schedule table
-        schedule_table_path = "/home/chenwh/Workspace/data/minimal"
-        tables = tt_tb.tt_table_generator(schedule_table_path)
-        for switch_index, table in enumerate(tables):  
-            self.TT_SCHD_TABLE = table
-            # compare switch ID
-            if datapath.id == switch_index + 1:
-                # Send download start control message
-                self.table_id = 1
-                req = parser.ONFTTFlowCtrl(datapath=datapath,
+        schedule_table_path = "/home/chenwh/Workspace/data/linear"
+        # if self.TT_SCHD_TABLES is None:
+        self.TT_SCHD_TABLES = tt_tb.load_tt_flowtable(schedule_table_path)
+        # Send download start control message
+        self.table_id = 1
+        req = parser.ONFTTFlowCtrl(datapath=datapath,
                                    table_id=self.table_id,
                                    type_=ofproto.ONF_TFCT_ADD_TABLE_REQUEST,
                                    properties=[])
-                datapath.send_msg(req)
+        datapath.send_msg(req)
     
     @set_ev_cls(ofp_event.EventONFTTFlowCtrl, MAIN_DISPATCHER)
     def _tt_flow_control_handler(self, ev):
@@ -154,8 +152,8 @@ class SimpleSwitch14(app_manager.RyuApp):
         if msg.type == ofproto.OFPBCT_OPEN_REPLY:
             self.logger.info("thurtsdn: s%d tt bundle open success!", datapath.id)
             # Download TT flow entries
-            flow_cnt = len(self.TT_SCHD_TABLE)
-            for i, entry in enumerate(self.TT_SCHD_TABLE):
+            flow_cnt = len(self.TT_SCHD_TABLES[datapath.id])
+            for i, entry in enumerate(self.TT_SCHD_TABLES[datapath.id]):
                 mdata = 0
                 if i == 0:
                     mdata = 1 << 24
